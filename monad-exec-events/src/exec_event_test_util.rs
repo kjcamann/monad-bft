@@ -1,3 +1,20 @@
+//! This module defines test utilities and reference data for use in
+//! this packages test, as well as downstream packages that use
+//! execution events.
+
+use monad_event_ring::{
+    event_reader::EventReader,
+    event_ring::{EventContentType, EventRing},
+};
+
+use crate::{
+    block_builder::{BlockBuilder, BlockUpdate, ExecutedBlockInfo},
+    consensus_state_tracker::{ConsensusStateResult, ConsensusStateTracker},
+    exec_event_ctypes::EXEC_EVENT_DOMAIN_METADATA,
+    exec_event_stream::{ExecEventStream, ExecEventStreamConfig, PollResult},
+    exec_events::{BlockTag, ConsensusState, ExecEvent, MonadBlockId},
+};
+
 /// Each instance of this object references a collection of binary data
 /// that represents a particular test case scenario for the execution event
 /// system
@@ -30,7 +47,7 @@ pub struct ExecEventTestScenario<'a> {
     /// functionality.
     pub expected_block_update_json_zst: &'a [u8],
 
-    /// Sequence number of the last BLOCK_FINALIZE event in the event ring
+    /// Sequence number of the last BLOCK_FINALIZED event in the event ring
     /// snapshot
     pub last_block_seqno: u64,
 }
@@ -47,7 +64,7 @@ pub const ETHEREUM_MAINNET_30B_15M: ExecEventTestScenario = ExecEventTestScenari
     expected_block_update_json_zst: include_bytes!(
         "test_data/expected-block-updates-emn-30b-15m.json.zst"
     ),
-    last_block_seqno: 134956,
+    last_block_seqno: 136891,
 };
 
 // The file "exec-events-mdn-30b-genesis.zst" contains the execution events
@@ -63,6 +80,271 @@ pub const MONAD_DEVNET_30B_GENESIS: ExecEventTestScenario = ExecEventTestScenari
     expected_block_update_json_zst: include_bytes!(
         "test_data/expected-block-updates-mdn-30b-genesis.json.zst"
     ),
-    last_block_seqno: 303,
+    last_block_seqno: 169625,
 };
 
+/// Represents a single event in the cross-validation test. The CVT test
+/// is defined in the following way:
+///
+/// - The execution daemon can export a JSON view of what it thinks a Rust
+///   CrossValidationTestUpdate should look like. Because all the major
+///   structures in the `exec_event_test_util.rs` module use
+///   #[derive(serde::Deserialize)], Rust can easily load the serialized
+///   C++ "ground truth."
+///
+/// - A test starts by loading a persisted snapshot of the event ring file
+///   that has been saved to disk, using the event ring's "test utility"
+///   module. This snapshot should contain the same low-level event stream for
+///   which C++ exported the "ground truth" JSON for CrossValidationTestUpdate
+///   objects.
+///
+/// - The CrossValidationTestStream uses the ExecEventStream, BlockBuilder,
+///   and ConsensusStateTracker objects to reassemble the persisted event
+///   stream into its own view of the CrossValidationTestUpdate stream.
+///
+/// - As a final step, we zip the two Vec<CrossValidationTestUpdate> inputs
+///   together and check that each pair matches exactly
+///
+/// The idea behind the cross-validation test is that we're computing the
+/// same thing in two very different ways, one of which is very circuitous
+/// (execution recorder -> shared memory -> Rust event library -> Rust
+/// reassembly library), the other of which is direct and does not use any
+/// of the same code.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum CrossValidationTestUpdate {
+    Executed(Box<ExecutedBlockInfo>),
+    Referendum {
+        block_tag: BlockTag,
+        outcome: ConsensusState,
+        superseded_proposals: Vec<BlockTag>,
+    },
+    UnknownProposal {
+        block_number: u64,
+        block_id: MonadBlockId,
+        consensus_state: ConsensusState,
+    },
+    UnexpectedEventError(String),
+}
+
+pub struct CrossValidationTestStream<'ring> {
+    event_stream: ExecEventStream<'ring>,
+    block_builder: BlockBuilder,
+    consensus_tracker: ConsensusStateTracker<()>,
+    unexpected_event_error: Option<String>,
+}
+
+impl<'ring> CrossValidationTestStream<'ring> {
+    pub fn new(event_ring: &'ring EventRing) -> Result<CrossValidationTestStream<'ring>, String> {
+        let mut event_reader = EventReader::new(
+            event_ring,
+            EventContentType::Exec,
+            &EXEC_EVENT_DOMAIN_METADATA.schema_hash,
+        )?;
+        event_reader.read_last_seqno = 0;
+
+        let config = ExecEventStreamConfig {
+            parse_txn_input: true,
+            opt_process_exit_monitor: None,
+        };
+
+        Ok(CrossValidationTestStream {
+            event_stream: ExecEventStream::new(event_reader, config),
+            block_builder: BlockBuilder::new(),
+            consensus_tracker: ConsensusStateTracker::new(),
+            unexpected_event_error: None,
+        })
+    }
+
+    pub fn poll(&mut self) -> Option<CrossValidationTestUpdate> {
+        if let Some(e) = self.unexpected_event_error.clone() {
+            return Some(CrossValidationTestUpdate::UnexpectedEventError(e));
+        }
+
+        loop {
+            let exec_event = match self.event_stream.poll() {
+                PollResult::NotReady => {
+                    if self.event_stream.reader().get_available_descriptors() == 0 {
+                        return None;
+                    }
+                    continue;
+                }
+                r @ PollResult::Disconnected
+                | r @ PollResult::Gap { .. }
+                | r @ PollResult::PayloadExpired { .. } => {
+                    // As soon as we see one of these, we'll fail the cross validation test
+                    let e = format!("event stream error: {r:?}");
+                    self.unexpected_event_error.replace(e);
+                    return Some(CrossValidationTestUpdate::UnexpectedEventError(
+                        self.unexpected_event_error.as_ref().unwrap().clone(),
+                    ));
+                }
+                PollResult::Ready { seqno: _, event } => event,
+            };
+            if let Some(u) = self.try_append(exec_event) {
+                return Some(u);
+            }
+        }
+    }
+
+    fn try_append(&mut self, exec_event: ExecEvent) -> Option<CrossValidationTestUpdate> {
+        match self.block_builder.try_append(exec_event) {
+            Some(BlockUpdate::Executed(exec_info)) => {
+                let block_tag = exec_info.block_tag;
+                let consensus_state = exec_info.consensus_state;
+                self.consensus_tracker
+                    .add_proposal(block_tag, consensus_state, ());
+                Some(CrossValidationTestUpdate::Executed(exec_info))
+            }
+
+            Some(BlockUpdate::NonBlockEvent(ExecEvent::Referendum { block_tag, outcome })) => {
+                // A consensus referendum on a proposal has concluded; look up the associated
+                // proposal
+                let block_number = block_tag.block_number;
+                let block_id = block_tag.id;
+                match self
+                    .consensus_tracker
+                    .update_proposal(block_number, &block_id, outcome)
+                {
+                    ConsensusStateResult::Outstanding { .. } => {
+                        Some(CrossValidationTestUpdate::Referendum {
+                            block_tag,
+                            outcome,
+                            superseded_proposals: Vec::new(),
+                        })
+                    }
+
+                    ConsensusStateResult::Finalization {
+                        finalized_proposal: _,
+                        abandoned_proposals,
+                    } => {
+                        let mut superseded_proposals: Vec<BlockTag> = abandoned_proposals
+                            .into_iter()
+                            .map(|ps| ps.block_tag)
+                            .collect();
+                        superseded_proposals.sort_by(|lhs, rhs| lhs.id.0.cmp(&rhs.id.0));
+                        Some(CrossValidationTestUpdate::Referendum {
+                            block_tag,
+                            outcome,
+                            superseded_proposals,
+                        })
+                    }
+
+                    ConsensusStateResult::Verification { .. } => {
+                        Some(CrossValidationTestUpdate::Referendum {
+                            block_tag,
+                            outcome,
+                            superseded_proposals: Vec::new(),
+                        })
+                    }
+
+                    ConsensusStateResult::UnknownProposal { .. } => {
+                        Some(CrossValidationTestUpdate::UnknownProposal {
+                            block_number: block_tag.block_number,
+                            block_id: block_tag.id,
+                            consensus_state: outcome,
+                        })
+                    }
+                }
+            }
+
+            Some(bu @ BlockUpdate::Failed(_))
+            | Some(bu @ BlockUpdate::OrphanedEvent(_))
+            | Some(bu @ BlockUpdate::ImplicitDrop { .. }) => {
+                let e = format!("BlockUpdate we don't expect execution CVT to produce: {bu:?}");
+                self.unexpected_event_error.replace(e);
+                Some(CrossValidationTestUpdate::UnexpectedEventError(
+                    self.unexpected_event_error.as_ref().unwrap().clone(),
+                ))
+            }
+
+            Some(BlockUpdate::NonBlockEvent(_)) | None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use monad_event_ring::{event_ring::EventRing, event_ring_util::EventRingSnapshot};
+
+    use crate::{
+        exec_event_test_util::{
+            CrossValidationTestStream, CrossValidationTestUpdate, ExecEventTestScenario,
+            ETHEREUM_MAINNET_30B_15M, MONAD_DEVNET_30B_GENESIS,
+        },
+        exec_events::ConsensusState,
+    };
+
+    fn run_cvt_test(scenario: &ExecEventTestScenario) {
+        const MAX_FILE_SIZE: usize = 1 << 30;
+        let zstd_decomp =
+            zstd::bulk::decompress(scenario.expected_block_update_json_zst, MAX_FILE_SIZE).unwrap();
+
+        // Deserialize the expected updates from the input file
+        let mut expected_block_updates: Vec<CrossValidationTestUpdate> =
+            serde_json::from_slice(zstd_decomp.as_slice()).unwrap();
+
+        // For the actual updates, we'll open the compressed snapshot of the
+        // underlying events
+        let actual_snap =
+            EventRingSnapshot::load_from_bytes(scenario.event_ring_snapshot_zst, scenario.name);
+        let mmap_prot = libc::PROT_READ;
+        let mmap_extra_flags = 0;
+        let event_ring = match EventRing::mmap_from_fd(
+            mmap_prot,
+            mmap_extra_flags,
+            actual_snap.snapshot_fd,
+            actual_snap.snapshot_off,
+            scenario.name,
+        ) {
+            Err(e) => {
+                panic!("event library error -- {e}");
+            }
+            Ok(r) => r,
+        };
+
+        let mut cvt_stream = match CrossValidationTestStream::new(&event_ring) {
+            Err(e) => {
+                panic!("event library error -- {e}");
+            }
+            Ok(s) => s,
+        };
+
+        let mut actual_block_updates: Vec<CrossValidationTestUpdate> = Vec::new();
+        while let Some(u) = cvt_stream.poll() {
+            if let CrossValidationTestUpdate::UnexpectedEventError(e) = u {
+                panic!("unexpected event error occurred, CVT test failed: {e}");
+            }
+            if let CrossValidationTestUpdate::UnknownProposal {
+                block_number: _,
+                block_id: _,
+                consensus_state: ConsensusState::Verified,
+            } = u
+            {
+                // C++ cannot recover the verified unknown proposals the same way we can; this is
+                // not very interesting anyway
+                continue;
+            }
+            actual_block_updates.push(u);
+        }
+
+        let mut matched_update_count: usize = 0;
+        for (expected_update, actual_update) in
+            expected_block_updates.iter_mut().zip(&actual_block_updates)
+        {
+            assert_eq!(*expected_update, *actual_update);
+            matched_update_count += 1;
+        }
+
+        println!("matched all {matched_update_count} block updates");
+    }
+
+    #[test]
+    fn cvt_emn_30b_15m() {
+        run_cvt_test(&ETHEREUM_MAINNET_30B_15M)
+    }
+
+    #[test]
+    fn cvt_mdn_30b_genesis() {
+        run_cvt_test(&MONAD_DEVNET_30B_GENESIS)
+    }
+}

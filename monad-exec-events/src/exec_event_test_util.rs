@@ -80,7 +80,7 @@ pub const MONAD_DEVNET_30B_GENESIS: ExecEventTestScenario = ExecEventTestScenari
     expected_block_update_json_zst: include_bytes!(
         "test_data/expected-block-updates-mdn-30b-genesis.json.zst"
     ),
-    last_block_seqno: 303,
+    last_block_seqno: 169625,
 };
 
 /// Represents a single event in the cross-validation test. The CVT test

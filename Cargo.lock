@@ -5154,12 +5154,7 @@ dependencies = [
 name = "monad-event-ring"
 version = "0.1.0"
 dependencies = [
- "bindgen 0.71.1",
- "cc",
- "clap 4.5.41",
  "cmake",
- "criterion",
- "itertools 0.10.5",
  "libc",
  "zstd",
 ]
@@ -5168,15 +5163,12 @@ dependencies = [
 name = "monad-exec-events"
 version = "0.1.0"
 dependencies = [
- "alloy-consensus",
  "alloy-primitives",
- "alloy-rpc-types",
- "bindgen 0.71.1",
- "criterion",
- "itertools 0.10.5",
+ "chrono",
+ "clap 4.5.41",
+ "libc",
  "monad-event-ring",
- "serde",
- "tracing",
+ "zstd",
 ]
 
 [[package]]
@@ -5592,7 +5584,6 @@ dependencies = [
  "monad-eth-types",
  "monad-ethcall",
  "monad-event-ring",
- "monad-exec-events",
  "monad-node-config",
  "monad-pprof",
  "monad-rpc-docs",

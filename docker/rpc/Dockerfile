@@ -71,8 +71,9 @@ ENV TRIEDB_TARGET=triedb_driver
 # Builder
 COPY . .
 RUN ASMFLAGS="-march=haswell" CFLAGS="-march=haswell -fno-omit-frame-pointer" CXXFLAGS="-march=haswell -fno-omit-frame-pointer" \
-    RUSTFLAGS="-C force-frame-pointers=yes" CC=gcc-15 CXX=g++-15 cargo build --release --bin monad-rpc && \
+    RUSTFLAGS="-C force-frame-pointers=yes" CC=gcc-15 CXX=g++-15 cargo build --release --bin monad-rpc --bin exec-event-watch && \
     mv target/release/monad-rpc rpc && \
+    mv target/release/exec-event-watch exec-event-watch && \
     cp `ls -Lt $(find target/release | grep -e "libtriedb_driver.so")` . && \
     ldd $(ls -Lt $(find target/release | grep -e "libtriedb_driver.so")) | docker/filter-dependent-shared-objects.py | xargs -I {} cp {} .
 
@@ -85,6 +86,7 @@ ENV RUST_LOG=info
 ENV RUST_BACKTRACE=1
 
 COPY --from=builder /usr/src/monad-bft/rpc /usr/local/bin/monad-rpc
+COPY --from=builder /usr/src/monad-bft/exec-event-watch /usr/local/bin/exec-event-watch
 COPY --from=builder /usr/src/monad-bft/*.so /usr/local/lib
 COPY --from=builder /usr/src/monad-bft/*.so.* /usr/local/lib
 

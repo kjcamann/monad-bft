@@ -72,10 +72,11 @@ ARG TRIEDB_TARGET=triedb_driver
 # Builder
 COPY . .
 RUN ASMFLAGS="-march=haswell" CFLAGS="-march=haswell -fno-omit-frame-pointer" CXXFLAGS="-march=haswell -fno-omit-frame-pointer" \
-    RUSTFLAGS="-C force-frame-pointers=yes" CC=gcc-15 CXX=g++-15 cargo build --release --bin monad-node --bin monad-keystore --bin monad-debug-node --example ledger-tail --example wal2json --example triedb-bench --example sign-name-record && \
+    RUSTFLAGS="-C force-frame-pointers=yes" CC=gcc-15 CXX=g++-15 cargo build --release --bin monad-node --bin monad-keystore --bin monad-debug-node --bin exec-event-watch --example ledger-tail --example wal2json --example triedb-bench --example sign-name-record && \
     mv target/release/monad-node monad-node && \
     mv target/release/monad-keystore keystore && \
     mv target/release/monad-debug-node monad-debug-node && \
+    mv target/release/exec-event-watch exec-event-watch && \
     mv target/release/examples/ledger-tail ledger-tail && \
     mv target/release/examples/wal2json wal2json && \
     mv target/release/examples/triedb-bench triedb-bench && \
@@ -94,6 +95,7 @@ ENV RUST_BACKTRACE=1
 COPY --from=builder /usr/src/monad-bft/monad-node/monad-node /usr/local/bin/monad-node
 COPY --from=builder /usr/src/monad-bft/keystore /usr/local/bin/keystore
 COPY --from=builder /usr/src/monad-bft/monad-debug-node/monad-debug-node /usr/local/bin/monad-debug-node
+COPY --from=builder /usr/src/monad-bft/exec-event-watch /usr/local/bin/exec-event-watch
 COPY --from=builder /usr/src/monad-bft/ledger-tail /usr/local/bin/ledger-tail
 COPY --from=builder /usr/src/monad-bft/wal2json /usr/local/bin/wal2json
 COPY --from=builder /usr/src/monad-bft/triedb-bench /usr/local/bin/triedb-bench

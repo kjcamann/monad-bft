@@ -35,13 +35,7 @@ pub use self::bindings::{
     MONAD_TXN_EIP2930, MONAD_TXN_LEGACY,
 };
 
-#[allow(
-    dead_code,
-    missing_docs,
-    non_camel_case_types,
-    non_upper_case_globals,
-    rustdoc::broken_intra_doc_links
-)]
+#[allow(dead_code, missing_docs, non_camel_case_types, non_upper_case_globals)]
 mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

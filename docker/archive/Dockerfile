@@ -77,7 +77,8 @@ RUN ASMFLAGS="-march=haswell" CFLAGS="-march=haswell" CXXFLAGS="-march=haswell -
     mv target/release/monad-archiver archiver && \
     mv target/release/monad-archive-checker archive-checker && \
     mv target/release/monad-indexer indexer && \
-    cp `ls -Lt $(find target/release | grep -e "libtriedb_driver.so") | awk -F/ '!seen[$NF]++'` . 
+    cp `ls -Lt $(find target/release | grep -e "libtriedb_driver.so")` . && \
+    ldd $(ls -Lt $(find target/release | grep -e "libtriedb_driver.so")) | docker/filter-dependent-shared-objects.py | xargs -I {} cp {} .
 
 # Debug runner
 FROM base AS runner-debug

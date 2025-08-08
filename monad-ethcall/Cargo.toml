@@ -10,6 +10,7 @@ bench = false
 
 [dependencies]
 monad-chain-config = { workspace = true }
+monad-cxx = { workspace = true }
 
 alloy-consensus = { workspace = true }
 alloy-eips = { workspace = true }
@@ -24,4 +25,3 @@ tracing = { workspace = true }
 
 [build-dependencies]
 bindgen = { workspace = true }
-cmake = { workspace = true }

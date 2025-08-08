@@ -17,25 +17,10 @@ use std::{env, path::PathBuf};
 
 fn main() {
     println!("cargo:rerun-if-changed=../monad-cxx/monad-execution");
-    println!("cargo:rerun-if-env-changed=TRIEDB_TARGET");
 
-    let build_execution_lib =
-        env::var("TRIEDB_TARGET").is_ok_and(|target| target == "triedb_driver");
-    if build_execution_lib {
-        let target = "monad_rpc";
-        let dst = cmake::Config::new("../monad-cxx/monad-execution")
-            .define("CMAKE_BUILD_TARGET", target)
-            .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON")
-            .define("BUILD_SHARED_LIBS", "ON")
-            .build_target(target)
-            .build();
-
-        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", dst.display());
-        println!(
-            "cargo:rustc-link-search=native={}/build/category/rpc",
-            dst.display()
-        );
-        println!("cargo:rustc-link-lib=dylib={}", &target);
+    let has_execution_lib = env::var("TRIEDB_TARGET").is_ok_and(|target| target == "triedb_driver");
+    if has_execution_lib {
+        println!("cargo:rustc-link-lib=dylib=monad_execution");
     }
 
     let bindings = bindgen::Builder::default()

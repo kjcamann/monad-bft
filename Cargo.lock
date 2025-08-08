@@ -4954,6 +4954,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "monad-cxx"
+version = "0.1.0"
+dependencies = [
+ "cmake",
+]
+
+[[package]]
 name = "monad-dataplane"
 version = "0.1.0"
 dependencies = [
@@ -5232,10 +5239,10 @@ dependencies = [
  "alloy-rlp",
  "alloy-sol-types",
  "bindgen 0.71.1",
- "cmake",
  "futures",
  "hex",
  "monad-chain-config",
+ "monad-cxx",
  "serde",
  "tokio",
  "tracing",
@@ -5804,11 +5811,11 @@ dependencies = [
  "alloy-consensus",
  "alloy-rlp",
  "bindgen 0.71.1",
- "cmake",
  "criterion",
  "futures",
  "monad-consensus-types",
  "monad-crypto",
+ "monad-cxx",
  "monad-eth-types",
  "monad-executor",
  "monad-executor-glue",
@@ -5904,6 +5911,7 @@ dependencies = [
  "bindgen 0.71.1",
  "cmake",
  "futures",
+ "monad-cxx",
  "tracing",
 ]
 

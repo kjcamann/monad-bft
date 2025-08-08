@@ -10,6 +10,7 @@ bench = false
 
 [dependencies]
 futures = { workspace = true }
+monad-cxx = { workspace = true }
 tracing = { workspace = true }
 
 [build-dependencies]

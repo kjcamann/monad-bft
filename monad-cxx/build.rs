@@ -20,16 +20,33 @@ fn main() {
     let build_execution_lib =
         std::env::var("TRIEDB_TARGET").is_ok_and(|target| target == "triedb_driver");
     if build_execution_lib {
-        let target = "monad_execution";
-        let dst = cmake::Config::new("monad-execution")
+        /*
+         * libmonad_execution.so - hosted execution functionality
+         */
+
+        let exec_target = "monad_execution";
+        let exec_dst = cmake::Config::new("monad-execution")
             .define("BUILD_SHARED_LIBS", "ON")
-            .build_target(target)
+            .build_target(exec_target)
             .build();
 
-        println!("cargo:rustc-link-search=native={}/build", dst.display());
-        println!("cargo:rustc-link-lib=dylib={}", &target);
+        println!("cargo:rustc-link-search=native={}/build", exec_dst.display());
+        println!("cargo:rustc-link-lib=dylib={}", &exec_target);
 
         // Tell dependent packages where libmonad_execution.so is
-        println!("cargo:CMAKE_BINARY_DIR={}/build", dst.display())
+        println!("cargo:CMAKE_BINARY_DIR={}/build", exec_dst.display());
+
+        /*
+         * libmonad_cxx_env.so - needed to bring up the C++ environment inside Rust
+         */
+
+        let cxx_env_target = "monad_cxx_env";
+        let cxx_env_dst = cmake::Config::new("monad-cxx-env")
+            .define("BUILD_SHARED_LIBS", "ON")
+            .build_target(cxx_env_target)
+            .build();
+
+        println!("cargo:rustc-link-search=native={}/build", cxx_env_dst.display());
+        println!("cargo:rustc-link-lib=dylib={}", &cxx_env_target);
     }
 }

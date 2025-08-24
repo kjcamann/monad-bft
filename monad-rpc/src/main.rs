@@ -65,6 +65,7 @@ pub static malloc_conf: &[u8] = b"prof:true,prof_active:true,lg_prof_sample:19\0
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> std::io::Result<()> {
+    monad_cxx::init_quill_logging();
     let args = Cli::parse();
 
     let node_config: MonadNodeConfig = toml::from_str(&std::fs::read_to_string(&args.node_config)?)

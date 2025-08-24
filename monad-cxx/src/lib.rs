@@ -13,5 +13,36 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Nothing here, this package is only here to host a build.rs that compiles
-// the shared library libmonad_execution.so
+use std::sync::Once;
+use tracing::{event, Level};
+
+#[repr(C)]
+struct QuillLogEvent
+{
+    log_level: u8
+}
+
+// Called by quill, sent to tracing framework via the event! macro
+extern "C" fn log_callback(pq: *const QuillLogEvent)
+{
+    let q = unsafe{ & *pq };
+    match q.log_level {
+        0..=2 => event!(Level::TRACE, "hi"),
+        3 => event!(Level::DEBUG, "hi"),
+        4 => event!(Level::INFO, "hi"),
+        5 => event!(Level::WARN, "hi"),
+        _ => event!(Level::ERROR, "hi"),
+    };
+}
+
+extern "C" {
+    fn monad_cxx_env_init_quill(cb: extern "C" fn(*const QuillLogEvent));
+}
+
+static QUILL_INIT: Once = Once::new();
+
+pub fn init_quill_logging() {
+    QUILL_INIT.call_once(|| {
+        unsafe { monad_cxx_env_init_quill(log_callback) };
+    });
+}

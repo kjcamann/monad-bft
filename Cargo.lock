@@ -4972,6 +4972,7 @@ name = "monad-cxx"
 version = "0.1.0"
 dependencies = [
  "cmake",
+ "tracing",
 ]
 
 [[package]]
@@ -5700,6 +5701,7 @@ dependencies = [
  "itertools 0.10.5",
  "monad-archive",
  "monad-chain-config",
+ "monad-cxx",
  "monad-eth-testutil",
  "monad-eth-txpool-ipc",
  "monad-eth-txpool-types",

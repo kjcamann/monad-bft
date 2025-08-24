@@ -15,6 +15,7 @@
 //! used to build these Rust-native types from their corresponding C inputs.
 
 use alloy_primitives::{Address, Bytes, B256, B64, U256};
+use alloy_eips::eip2930;
 
 /// Models the level of confidence we have in a block, according to the
 /// Monad network's consensus algorithm
@@ -332,8 +333,21 @@ pub enum ExecEvent {
         /// Address of account sending the transaction
         sender: Address,
 
-        /// Definition of the transaction
+        /// Definition of the transaction; this is missing the EIP-2930
+        /// access list because they are announced in subsequent events
         txn_envelope: alloy_consensus::TxEnvelope,
+        
+        /// Number of TransactionAccessListEntry events that will
+        /// immediately follow this event
+        access_list_entry_count: u32,
+    },
+
+    /// Event emitted for a single entry in a EIP-2930 list; these are emitted
+    /// in index order immediately following the TransactionStart event
+    TransactionAccessListEntry {
+        txn_index: u64,
+        access_list_index: u32,
+        entry: eip2930::AccessListItem,
     },
 
     /// Event emitted when transaction execution did not complete successfully,

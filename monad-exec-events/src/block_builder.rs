@@ -5,7 +5,7 @@
 //! "block update", for users that prefer a block-at-a-time API.
 
 use std::collections::{hash_map, HashMap};
-
+use alloy_consensus::TxEip2930;
 use alloy_primitives::{Address, B256, B64, U256};
 
 use crate::exec_events::{
@@ -319,6 +319,7 @@ impl BlockBuilder {
                 txn_index,
                 sender,
                 txn_envelope,
+                access_list_entry_count,
             } => {
                 if let Some(block_info) = self.current_block.as_mut() {
                     block_info.transactions[txn_index as usize].replace(TransactionInfo {
@@ -336,6 +337,7 @@ impl BlockBuilder {
                         txn_index,
                         sender,
                         txn_envelope,
+                        access_list_entry_count,
                     }))
                 }
             }
@@ -490,6 +492,7 @@ impl BlockBuilder {
 
         let txn_index = *match &event {
             ExecEvent::TransactionStart { txn_index, .. } => txn_index,
+            ExecEvent::TransactionAccessListEntry { txn_index, .. } => txn_index,
             ExecEvent::TransactionEvmOutput { txn_index, .. } => txn_index,
             ExecEvent::TransactionLog { txn_index, .. } => txn_index,
             ExecEvent::TransactionCallFrame { txn_index, .. } => txn_index,
@@ -524,6 +527,20 @@ impl BlockBuilder {
         };
 
         match event {
+            ExecEvent::TransactionAccessListEntry {
+                txn_index: _,
+                access_list_index: _,
+                entry
+            } => {
+                match txn_info.txn_envelope {
+                    alloy_consensus::TxEnvelope::Eip2930(ref mut txn_eip_2930) =>
+                        txn_eip_2930.tx_mut().access_list.0.push(entry),
+                    alloy_consensus::TxEnvelope::Eip1559(ref mut txn_eip_1559) =>
+                        txn_eip_1559.tx_mut().access_list.0.push(entry),
+                    _ => ()
+                };
+            }
+            
             ExecEvent::TransactionEvmOutput {
                 txn_index: _,
                 status,

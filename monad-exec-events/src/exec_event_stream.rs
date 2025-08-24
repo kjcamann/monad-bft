@@ -3,6 +3,7 @@
 //! the more ergonomic Rust API types from the `exec_events.rs` module.
 
 use alloy_primitives::{Bytes, TxKind, B256, B64, U256};
+use alloy_eips::eip2930; 
 use monad_event_ring::{
     event_reader::{self, EventReader},
     event_ring::monad_event_descriptor,
@@ -150,6 +151,7 @@ impl<'ring> ExecEventStream<'ring> {
             BLOCK_QC | BLOCK_FINALIZED => self.act_on_consensus_change(event, event_type),
             BLOCK_VERIFIED => self.act_on_block_verified(event),
             TXN_START => self.act_on_txn_start(event),
+            TXN_ACCESS_LIST_ENTRY => self.act_on_txn_access_list_entry(event),
             TXN_REJECT => self.act_on_txn_reject(event),
             TXN_PERF_EVM_ENTER => self.act_on_txn_perf_evm_enter(event),
             TXN_PERF_EVM_EXIT => self.act_on_txn_perf_evm_exit(event),
@@ -301,7 +303,7 @@ impl<'ring> ExecEventStream<'ring> {
     fn act_on_txn_start(&'_ mut self, event: monad_event_descriptor) -> PollResult {
         const TXN_START_SIZE: usize = size_of::<exec_event_ctypes::txn_start>();
         let payload = self.reader.payload_peek(&event);
-        let txn_no = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_no = event.content_ext[flow_type::TXN_ID as usize] - 1;
         let txn_start = unsafe { &*(payload.as_ptr() as *const exec_event_ctypes::txn_start) };
         let input = if self.config.parse_txn_input {
             Bytes::copy_from_slice(&payload[TXN_START_SIZE..event.payload_size as usize])
@@ -318,6 +320,30 @@ impl<'ring> ExecEventStream<'ring> {
                     &txn_start.txn_header,
                     input,
                 ),
+                access_list_entry_count: txn_start.txn_header.access_list_count,
+            },
+        )
+    }
+    
+    fn act_on_txn_access_list_entry(&'_ mut self, event: monad_event_descriptor) -> PollResult {
+        const LIST_ENTRY_HEADER_SIZE: usize = size_of::<exec_event_ctypes::txn_access_list_entry>();
+        let payload = self.reader.payload_peek(&event);
+        let list_entry=
+            unsafe { &*(payload.as_ptr() as *const exec_event_ctypes::txn_access_list_entry) };
+        let txn_index = event.content_ext[flow_type::TXN_ID as usize] - 1;
+        let storage_keys: &[B256] = unsafe {
+            let topic_base = payload.as_ptr().wrapping_add(LIST_ENTRY_HEADER_SIZE) as *const B256;
+            std::slice::from_raw_parts(topic_base, list_entry.entry.storage_key_count as usize)
+        };
+        self.try_create_event(
+            event,
+            ExecEvent::TransactionAccessListEntry {
+                txn_index,
+                access_list_index: list_entry.index,
+                entry: eip2930::AccessListItem {
+                    address: list_entry.entry.address,
+                    storage_keys: storage_keys.to_vec(),
+                }
             },
         )
     }
@@ -326,7 +352,7 @@ impl<'ring> ExecEventStream<'ring> {
         let payload = self.reader.payload_peek(&event);
         let reject_code: u32 =
             unsafe { *(payload.as_ptr() as *const exec_event_ctypes::txn_reject) };
-        let txn_index = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_index = event.content_ext[flow_type::TXN_ID as usize] - 1;
         self.try_create_event(
             event,
             ExecEvent::TransactionReject {
@@ -337,7 +363,7 @@ impl<'ring> ExecEventStream<'ring> {
     }
 
     fn act_on_txn_perf_evm_enter(&'_ mut self, event: monad_event_descriptor) -> PollResult {
-        let txn_index = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_index = event.content_ext[flow_type::TXN_ID as usize] - 1;
         PollResult::Ready {
             seqno: event.seqno,
             event: ExecEvent::TransactionPerfEvmEnter { txn_index },
@@ -345,7 +371,7 @@ impl<'ring> ExecEventStream<'ring> {
     }
 
     fn act_on_txn_perf_evm_exit(&'_ mut self, event: monad_event_descriptor) -> PollResult {
-        let txn_index = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_index = event.content_ext[flow_type::TXN_ID as usize] - 1;
         PollResult::Ready {
             seqno: event.seqno,
             event: ExecEvent::TransactionPerfEvmExit { txn_index },
@@ -356,7 +382,7 @@ impl<'ring> ExecEventStream<'ring> {
         let payload = self.reader.payload_peek(&event);
         let txn_evm_output =
             unsafe { &*(payload.as_ptr() as *const exec_event_ctypes::txn_evm_output) };
-        let txn_index = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_index = event.content_ext[flow_type::TXN_ID as usize] - 1;
         self.try_create_event(
             event,
             ExecEvent::TransactionEvmOutput {
@@ -375,7 +401,7 @@ impl<'ring> ExecEventStream<'ring> {
         const TOPIC_SIZE: usize = size_of::<B256>();
         let payload = self.reader.payload_peek(&event);
         let payload_base: *const u8 = payload.as_ptr();
-        let txn_no = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_no = event.content_ext[flow_type::TXN_ID as usize] - 1;
         let c_log_header = unsafe { &*(payload.as_ptr() as *const exec_event_ctypes::txn_log) };
         let topics: &[B256] = unsafe {
             let topic_base = payload_base.wrapping_add(LOG_HEADER_SIZE) as *const B256;
@@ -401,7 +427,7 @@ impl<'ring> ExecEventStream<'ring> {
         const CALL_FRAME_HEADER_SIZE: usize = size_of::<exec_event_ctypes::txn_call_frame>();
         let payload = self.reader.payload_peek(&event);
         let payload_base: *const u8 = payload.as_ptr();
-        let txn_no = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_no = event.content_ext[flow_type::TXN_ID as usize] - 1;
         let c_call_frame_header =
             unsafe { &*(payload.as_ptr() as *const exec_event_ctypes::txn_call_frame) };
         let input_slice: &[u8] = unsafe {
@@ -436,7 +462,7 @@ impl<'ring> ExecEventStream<'ring> {
     }
 
     fn act_on_txn_end(&'_ mut self, event: monad_event_descriptor) -> PollResult {
-        let txn_index = event.user[flow_type::TXN_ID as usize] - 1;
+        let txn_index = event.content_ext[flow_type::TXN_ID as usize] - 1;
         PollResult::Ready {
             seqno: event.seqno,
             event: ExecEvent::TransactionEnd { txn_index },
@@ -495,7 +521,7 @@ impl<'ring> ExecEventStream<'ring> {
             event,
             ExecEvent::StorageAccess {
                 access_context: make_account_access_context(&event, storage_access.access_context),
-                account_index: event.user[flow_type::ACCOUNT_INDEX as usize] as u32,
+                account_index: event.content_ext[flow_type::ACCOUNT_INDEX as usize] as u32,
                 storage_index: storage_access.index,
                 access_info: StorageAccess {
                     address: storage_access.address,
@@ -524,7 +550,7 @@ impl<'ring> ExecEventStream<'ring> {
             ExecEvent::EvmError {
                 domain_id: exec_error.domain_id,
                 status_code: exec_error.status_code,
-                txn_id: event.user[flow_type::TXN_ID as usize],
+                txn_id: event.content_ext[flow_type::TXN_ID as usize],
             },
         )
     }
@@ -602,7 +628,7 @@ fn make_account_access_context(
     context_code: exec_event_ctypes::account_access_context,
 ) -> AccountAccessContext {
     use exec_event_ctypes::account_access_context::*;
-    let txn_id = event.user[flow_type::TXN_ID as usize];
+    let txn_id = event.content_ext[flow_type::TXN_ID as usize];
     match context_code {
         BLOCK_PROLOGUE => AccountAccessContext::BlockPrologue,
         TRANSACTION => AccountAccessContext::Transaction(txn_id - 1),
@@ -636,7 +662,7 @@ fn create_tx_eip1559(
     txn_header: &eth_ctypes::eth_txn_header,
     input: Bytes,
 ) -> alloy_consensus::TxEip1559 {
-    alloy_consensus::TxEip1559 {
+    let mut txn_eip_1559 = alloy_consensus::TxEip1559 {
         chain_id: txn_header.chain_id.to::<alloy_primitives::ChainId>(),
         nonce: txn_header.nonce,
         gas_limit: txn_header.gas_limit,
@@ -650,14 +676,16 @@ fn create_tx_eip1559(
         value: txn_header.value,
         access_list: alloy_eips::eip2930::AccessList::default(),
         input,
-    }
+    };
+    txn_eip_1559.access_list.0.reserve(txn_header.access_list_count as usize);
+    txn_eip_1559
 }
 
 fn create_tx_eip2930(
     txn_header: &eth_ctypes::eth_txn_header,
     input: Bytes,
 ) -> alloy_consensus::TxEip2930 {
-    alloy_consensus::TxEip2930 {
+    let mut txn_eip_2930 = alloy_consensus::TxEip2930 {
         chain_id: txn_header.chain_id.to::<alloy_primitives::ChainId>(),
         nonce: txn_header.nonce,
         gas_price: txn_header.max_fee_per_gas.to::<u128>(),
@@ -670,5 +698,7 @@ fn create_tx_eip2930(
         value: txn_header.value,
         access_list: alloy_eips::eip2930::AccessList::default(),
         input,
-    }
+    };
+    txn_eip_2930.access_list.0.reserve(txn_header.access_list_count as usize);
+    txn_eip_2930
 }

@@ -5259,41 +5259,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "monad-event-ring"
-version = "0.1.0"
-dependencies = [
- "bindgen 0.71.1",
- "cc",
- "clap 4.5.45",
- "cmake",
- "criterion",
- "itertools 0.10.5",
- "libc",
- "zstd",
-]
-
-[[package]]
-name = "monad-exec-events"
-version = "0.1.0"
-dependencies = [
- "alloy-consensus",
- "alloy-primitives",
- "alloy-rpc-types",
- "bindgen 0.71.1",
- "chrono",
- "clap 4.5.45",
- "criterion",
- "hex",
- "itertools 0.10.5",
- "monad-event-ring",
- "ratatui",
- "serde",
- "serde_json",
- "strum",
- "tracing",
-]
-
-[[package]]
 name = "monad-executor"
 version = "0.1.0"
 dependencies = [

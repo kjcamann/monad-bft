@@ -207,7 +207,7 @@ fn open_cvt_input_file(file_name: PathBuf) -> CvtInput {
     input_file.read_to_end(&mut buf).unwrap();
 
     if u32::from_le_bytes(buf[0..4].try_into().unwrap()) == zstd::zstd_safe::MAGICNUMBER {
-        const MAX_FILE_SIZE: usize = 1 << 30;
+        const MAX_FILE_SIZE: usize = 1 << 34;
 
         let zstd_buf = zstd::bulk::decompress(&buf, MAX_FILE_SIZE)
             .expect(&format!("zstd decompression of {error_name} failed"));

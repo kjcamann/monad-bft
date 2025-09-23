@@ -160,6 +160,7 @@ fn run(args: Args) -> Result<(), String> {
                     .map_err(|err| format!("unable to recover keystore secret: {:?}", err))?;
 
             println!("Keystore version: {}", version);
+            println!("Keystore secret: {}", hex::encode(keystore_secret.as_ref()));
 
             if let Some(key_type) = key_type {
                 // print public key based on key type and version

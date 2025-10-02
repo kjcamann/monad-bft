@@ -5294,7 +5294,6 @@ dependencies = [
  "monad-chain-config",
  "monad-cxx",
  "serde",
- "tokio",
  "tracing",
 ]
 

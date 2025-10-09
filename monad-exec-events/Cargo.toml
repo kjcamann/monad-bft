@@ -29,12 +29,18 @@ hex = { workspace = true }
 lazy_static = { workspace = true }
 ratatui = { workspace = true }
 serde_json = { workspace = true }
+similar = { workspace = true }
 strum = { workspace = true }
+zstd = { workspace = true }
 
 [features]
-default = []
+default = ["alloy"]
 alloy = ["dep:alloy-consensus", "dep:alloy-eips", "dep:alloy-primitives", "dep:alloy-rpc-types"]
 
 [[bench]]
 name = "snapshot_exec"
 harness = false
+
+[[example]]
+name = "event_cvt_cli"
+required-features = ["alloy"]

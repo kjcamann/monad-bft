@@ -5305,8 +5305,10 @@ dependencies = [
  "ratatui",
  "serde",
  "serde_json",
+ "similar",
  "strum",
  "tracing",
+ "zstd",
 ]
 
 [[package]]

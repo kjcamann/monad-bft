@@ -14,7 +14,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-    ffi::{self, monad_event_descriptor, monad_event_iter_result, monad_event_iterator_try_next},
+    ffi::{self, monad_event_descriptor, monad_event_ring_iter_try_next, monad_event_ring_result},
     RawEventDescriptor, RawEventReader,
 };
 
@@ -38,9 +38,9 @@ pub enum EventNextResult<T> {
 impl<'ring> EventNextResult<RawEventDescriptor<'ring>> {
     pub(crate) fn new_from_raw(reader: &mut RawEventReader<'ring>) -> Self {
         let (c_event_iter_result, c_event_descriptor): (
-            monad_event_iter_result,
+            monad_event_ring_result,
             monad_event_descriptor,
-        ) = monad_event_iterator_try_next(&mut reader.inner);
+        ) = monad_event_ring_iter_try_next(&mut reader.inner);
 
         match c_event_iter_result {
             ffi::MONAD_EVENT_SUCCESS => Self::Ready(RawEventDescriptor::new(

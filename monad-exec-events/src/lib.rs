@@ -21,10 +21,12 @@
 //!
 //! # Quickstart
 //!
-//! Add `monad-event-ring` and `monad-exec-events` as dependencies to your Cargo.toml.
+//! Add `monad-event-ring` and `monad-exec-events` as dependencies to your Cargo.toml and enable
+//! the `"event-ring"` feature for `monad-exec-events`.
 //!
 //! ```custom
-//! cargo add --git https://github.com/monad-crypto/monad-bft monad-event-ring monad-exec-events
+//! cargo add --git https://github.com/monad-crypto/monad-bft monad-event-ring
+//! cargo add --git https://github.com/monad-crypto/monad-bft monad-exec-events --features event-ring
 //! ```
 //!
 //! Next, create an event ring and start consuming events!
@@ -74,30 +76,44 @@
 //!
 //! # Block-Oriented Updates
 //!
-//! `EventRing`s using an [`ExecEventDecoder`] (primarily [`ExecEventRing`]) can produce individual
-//! `monad` execution events. While many applications may benefit from operating on individual
-//! events or by observing them as quickly as possible, many would prefer to process entire blocks.
-//! This library provides the [`ExecutedBlockBuilder`] utility to reconstruct blocks from an event
-//! stream produced by an [`ExecEventRing`]. See [`ExecutedBlockBuilder`] for more details.
+//! Event sources using an [`ExecEventDecoder`] can produce individual `monad` execution events.
+//! While some applications may benefit from operating on individual events or by observing them as
+//! quickly as possible, many would prefer to process entire blocks. This library provides the
+//! [`ExecutedBlockBuilder`] utility to reconstruct blocks from an event source, providing
+//! block-oriented updates that can be converted to alloy blocks using the alloy feature flag.
+//! See [`ExecutedBlockBuilder`] for more details.
 //!
 //! This utility however produces all blocks that are executed, which could be in any
 //! [`BlockCommitState`]. For applications interested in consuming blocks once they have reached a
-//! certain commit state, usually [`BlockCommitState::Finalized`], applications can use the
+//! certain commit state, usually [`BlockCommitState::Voted`], applications can use the
 //! [`CommitStateBlockBuilder`] which produces a block along with its current commit state every time
 //! the block's commit state changes. See [`CommitStateBlockBuilder`] for more details.
 
-use monad_event_ring::{EventRing, SnapshotEventRing};
+#[cfg(feature = "event-ring")]
+use monad_event_ring::{EventReader, EventRing, EventRingPayload, SnapshotEventRing};
 
-pub use self::{block::*, block_builder::*, events::*, reader::*};
+pub use self::{block::*, block_builder::*, events::*, ext::*};
+
+pub mod ffi;
 
 mod block;
 mod block_builder;
 mod events;
-pub mod ffi;
-mod reader;
+mod ext;
 
+#[cfg(feature = "event-ring")]
 /// A type alias for an event ring that produces monad execution events.
 pub type ExecEventRing = EventRing<ExecEventDecoder>;
 
+#[cfg(feature = "event-ring")]
 /// A type alias for a snapshot event ring that produces monad execution events.
 pub type ExecSnapshotEventRing = SnapshotEventRing<ExecEventDecoder>;
+
+#[cfg(feature = "event-ring")]
+/// A type alias for an event reader that produces monad execution events.
+pub type ExecEventReader<'ring> = EventReader<'ring, ExecEventDecoder>;
+
+#[cfg(feature = "event-ring")]
+/// A type alias for an event descriptor produced by an execution event ring.
+pub type ExecEventRingDescriptor<'buf> =
+    monad_event::EventDescriptor<EventRingPayload<'buf>, ExecEventDecoder>;

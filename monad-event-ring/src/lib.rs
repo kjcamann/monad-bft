@@ -58,13 +58,13 @@
 //! both of which can be overwritten if the current process is unable to consume events at the same
 //! rate they are being produced and falls behind. If the next descriptor in the iteration sequence
 //! has been overwritten by a newer descriptor, the user is informed through the
-//! [`EventNextResult::Gap`] variant. Similarly, if the payload pointed to by an [`EventDescriptor`]
-//! is overwritten while attempting to read it through the various
-//! [`EventDescriptor::try_*`](EventDescriptor) methods, the user is informed through the
-//! [`EventPayloadResult::Expired`] variant. Once an event descriptor or payload is overwritten, it
-//! is **unrecoverable** from the event ring. Programs that depend on consuming all events of some
-//! kind produced by an event ring **must** enter a recovery phase to recover the (possibly) missing
-//! data.
+//! [`EventNextResult::Gap`] variant. Similarly, if the payload pointed to by an
+//! [`EventDescriptor`](monad_event::EventDescriptor) is overwritten while attempting to read it
+//! through the various [`EventDescriptor::try_*`](monad_event::EventDescriptor) methods, the user
+//! is informed through the [`EventPayloadResult::Expired`] variant. Once an event descriptor or
+//! payload is overwritten, it is **unrecoverable** from the event ring. Programs that depend on
+//! consuming all events of some kind produced by an event ring **must** enter a recovery phase to
+//! recover the (possibly) missing data.
 //!
 //! <div class="warning">
 //!
@@ -84,12 +84,10 @@
 //! ring which iterate independent of each other. In other words, all event readers produce every
 //! event exactly once.
 
-pub use self::{decoder::*, descriptor::*, path::*, reader::*, result::*, ring::*};
+pub use self::{path::*, reader::*, result::*, ring::*};
 
 pub mod ffi;
 
-mod decoder;
-mod descriptor;
 mod path;
 mod reader;
 mod result;

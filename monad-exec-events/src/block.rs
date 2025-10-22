@@ -409,7 +409,7 @@ pub struct ExecutedTxnCallFrame {
     pub r#return: Box<[u8]>,
 }
 
-/// TODO: Add docs
+/// Account access reconstructed from execution events.
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub struct ExecutedAccountAccess {
@@ -423,7 +423,7 @@ pub struct ExecutedAccountAccess {
     pub transient_accesses: Box<[ExecutedStorageAccess]>,
 }
 
-/// TODO: Add docs
+/// Storage access reconstructed from execution events.
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub struct ExecutedStorageAccess {
@@ -433,7 +433,7 @@ pub struct ExecutedStorageAccess {
     pub end_value: monad_c_bytes32,
 }
 
-/// TODO: Add docs
+/// Block-level account accesses reconstructed from execution events.
 #[allow(missing_docs)]
 #[derive(Clone, Debug)]
 pub struct ExecutedBlockAccountAccesses {

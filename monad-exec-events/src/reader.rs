@@ -13,16 +13,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use monad_event_ring::{EventDescriptor, EventReader};
+use monad_event::{EventDescriptor, EventDescriptorRead};
 
-use crate::{
-    ffi::{
-        monad_c_bytes32, monad_event_ring_get_block_id, monad_event_ring_get_block_number,
-        monad_event_ring_iter_block_id_prev, monad_event_ring_iter_block_number_prev,
-        monad_event_ring_iter_consensus_prev, MONAD_EXEC_NONE,
-    },
-    ExecEventDecoder, ExecEventType,
-};
+#[cfg(feature = "event-ring")]
+use crate::ffi;
+use crate::{ffi::monad_c_bytes32, ExecEventDecoder, ExecEventType};
+#[cfg(feature = "event-ring")]
+use crate::{ExecEventReader, ExecEventRing, ExecEventRingDescriptor};
 
 /// Provides utilities for [`ExecEventDecoder`] [`EventDescriptor`]s.
 pub trait ExecEventDescriptorExt {
@@ -33,20 +30,30 @@ pub trait ExecEventDescriptorExt {
     fn get_block_id(&self) -> Option<monad_c_bytes32>;
 }
 
-impl<'ring> ExecEventDescriptorExt for EventDescriptor<'ring, ExecEventDecoder> {
+#[cfg(feature = "event-ring")]
+impl<'buf> ExecEventDescriptorExt for ExecEventRingDescriptor<'buf> {
     fn get_block_number(&self) -> Option<u64> {
-        self.with_raw(monad_event_ring_get_block_number)
+        self.with_raw(|c_event_descriptor, raw_event_ring| {
+            raw_event_ring.with_inner(|c_event_ring| {
+                ffi::monad_event_ring_get_block_number(c_event_ring, c_event_descriptor)
+            })
+        })
     }
 
     fn get_block_id(&self) -> Option<monad_c_bytes32> {
-        self.with_raw(|c_event_ring, c_event_descriptor| {
-            monad_event_ring_get_block_id(c_event_ring, c_event_descriptor)
+        self.with_raw(|c_event_descriptor, raw_event_ring| {
+            raw_event_ring.with_inner(|c_event_ring| {
+                ffi::monad_event_ring_get_block_id(c_event_ring, c_event_descriptor)
+            })
         })
     }
 }
 
 /// Provides utilities for [`ExecEventDecoder`] [`EventReader`]s.
-pub trait ExecEventReaderExt<'ring> {
+pub trait ExecEventReaderExt<R>
+where
+    R: EventDescriptorRead,
+{
     /// Rewinds the [`EventReader`] to the last consensus event specified by the `filter` argument,
     /// producing an [`EventDescriptor`] to it.
     ///
@@ -55,7 +62,7 @@ pub trait ExecEventReaderExt<'ring> {
     fn consensus_prev(
         &mut self,
         filter: Option<ExecEventType>,
-    ) -> Option<EventDescriptor<'ring, ExecEventDecoder>>;
+    ) -> Option<EventDescriptor<R, ExecEventDecoder>>;
 
     /// Rewinds the [`EventReader`] to the last event in the provided `block_number` specified by
     /// the `filter` argument.
@@ -66,7 +73,7 @@ pub trait ExecEventReaderExt<'ring> {
         &mut self,
         block_number: u64,
         filter: Option<ExecEventType>,
-    ) -> Option<EventDescriptor<'ring, ExecEventDecoder>>;
+    ) -> Option<EventDescriptor<R, ExecEventDecoder>>;
 
     /// Rewinds the [`EventReader`] to the last event in the provided `block_id` specified by the
     /// `filter` argument.
@@ -77,18 +84,19 @@ pub trait ExecEventReaderExt<'ring> {
         &mut self,
         block_id: &monad_c_bytes32,
         filter: Option<ExecEventType>,
-    ) -> Option<EventDescriptor<'ring, ExecEventDecoder>>;
+    ) -> Option<EventDescriptor<R, ExecEventDecoder>>;
 }
 
-impl<'ring> ExecEventReaderExt<'ring> for EventReader<'ring, ExecEventDecoder> {
+#[cfg(feature = "event-ring")]
+impl<'buf> ExecEventReaderExt<&'buf ExecEventRing> for ExecEventReader<'buf> {
     fn consensus_prev(
         &mut self,
         filter: Option<ExecEventType>,
-    ) -> Option<EventDescriptor<'ring, ExecEventDecoder>> {
-        self.with_raw(|c_event_iterator| {
-            monad_event_ring_iter_consensus_prev(
-                c_event_iterator,
-                filter.map_or(MONAD_EXEC_NONE, ExecEventType::as_c_event_type),
+    ) -> Option<ExecEventRingDescriptor<'buf>> {
+        self.with_raw(|c_event_ring_iter| {
+            ffi::monad_event_ring_iter_consensus_prev(
+                c_event_ring_iter,
+                filter.map_or(ffi::MONAD_EXEC_NONE, ExecEventType::as_c_event_type),
             )
         })
     }
@@ -97,12 +105,12 @@ impl<'ring> ExecEventReaderExt<'ring> for EventReader<'ring, ExecEventDecoder> {
         &mut self,
         block_number: u64,
         filter: Option<ExecEventType>,
-    ) -> Option<EventDescriptor<'ring, ExecEventDecoder>> {
-        self.with_raw(|c_event_iterator| {
-            monad_event_ring_iter_block_number_prev(
-                c_event_iterator,
+    ) -> Option<ExecEventRingDescriptor<'buf>> {
+        self.with_raw(|c_event_ring_iter| {
+            ffi::monad_event_ring_iter_block_number_prev(
+                c_event_ring_iter,
                 block_number,
-                filter.map_or(MONAD_EXEC_NONE, ExecEventType::as_c_event_type),
+                filter.map_or(ffi::MONAD_EXEC_NONE, ExecEventType::as_c_event_type),
             )
         })
     }
@@ -111,12 +119,12 @@ impl<'ring> ExecEventReaderExt<'ring> for EventReader<'ring, ExecEventDecoder> {
         &mut self,
         block_id: &monad_c_bytes32,
         filter: Option<ExecEventType>,
-    ) -> Option<EventDescriptor<'ring, ExecEventDecoder>> {
-        self.with_raw(|c_event_iterator| {
-            monad_event_ring_iter_block_id_prev(
-                c_event_iterator,
+    ) -> Option<ExecEventRingDescriptor<'buf>> {
+        self.with_raw(|c_event_ring_iter| {
+            ffi::monad_event_ring_iter_block_id_prev(
+                c_event_ring_iter,
                 block_id,
-                filter.map_or(MONAD_EXEC_NONE, ExecEventType::as_c_event_type),
+                filter.map_or(ffi::MONAD_EXEC_NONE, ExecEventType::as_c_event_type),
             )
         })
     }

@@ -90,10 +90,11 @@ use monad_event_ring::{EventRing, SnapshotEventRing};
 
 pub use self::{block::*, block_builder::*, events::*, reader::*};
 
+pub mod ffi;
+
 mod block;
 mod block_builder;
 mod events;
-pub mod ffi;
 mod reader;
 
 /// A type alias for an event ring that produces monad execution events.

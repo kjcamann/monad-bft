@@ -13,10 +13,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use monad_event_ring::{
-    ffi::{monad_event_content_type, monad_event_record_error, MONAD_EVENT_CONTENT_TYPE_EXEC},
+use monad_event::{
+    ffi::{monad_event_content_type, MONAD_EVENT_CONTENT_TYPE_EXEC},
     EventDecoder, EventDescriptorInfo,
 };
+use monad_event_ring::ffi::monad_event_record_error;
 
 use self::bytes::{ref_from_bytes, ref_from_bytes_with_trailing};
 use crate::ffi::{
@@ -324,11 +325,11 @@ pub struct ExecEventRingFlowInfo {
 }
 
 impl EventDecoder for ExecEventDecoder {
-    fn ring_content_ctype() -> monad_event_content_type {
+    fn content_type() -> monad_event_content_type {
         MONAD_EVENT_CONTENT_TYPE_EXEC
     }
 
-    fn ring_schema_hash() -> &'static [u8; 32] {
+    fn schema_hash() -> &'static [u8; 32] {
         unsafe { &g_monad_exec_event_schema_hash }
     }
 

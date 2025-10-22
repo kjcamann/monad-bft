@@ -14,7 +14,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use itertools::Itertools;
-use monad_event_ring::{EventDescriptor, EventPayloadResult};
+use monad_event::EventDescriptor;
+use monad_event_ring::{EventPayloadResult, EventRing};
 use state::AccountAccessReassemblyState;
 
 use self::state::{BlockReassemblyState, TxnOutputReassemblyState, TxnReassemblyState};
@@ -55,7 +56,7 @@ impl ExecutedBlockBuilder {
     /// Processes the execution event in the provided event descriptor.
     pub fn process_event_descriptor<'ring>(
         &mut self,
-        event_descriptor: &EventDescriptor<'ring, ExecEventDecoder>,
+        event_descriptor: &EventDescriptor<&'ring EventRing<ExecEventDecoder>, ExecEventDecoder>,
     ) -> Option<BlockBuilderResult<ExecutedBlock>> {
         let filter_fn = match (self.include_call_frames, self.include_accesses) {
             (true, true) => Self::select_block_event_refs::<true, true>,
@@ -163,12 +164,12 @@ impl ExecutedBlockBuilder {
                 self.state = Some(BlockReassemblyState {
                     start: block_header,
                     txns: txns.into_boxed_slice(),
-                    account_accesses: self.include_accesses.then(|| {
+                    account_accesses: self.include_accesses.then_some(
                         BlockAccountAccessesReassemblyState {
                             prologue: None,
                             epilogue: None,
-                        }
-                    }),
+                        },
+                    ),
                 });
 
                 None

@@ -18,7 +18,8 @@ use std::{
     sync::Arc,
 };
 
-use monad_event_ring::{EventDescriptor, EventPayloadResult};
+use monad_event::EventDescriptor;
+use monad_event_ring::{EventPayloadResult, EventRing};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error};
 
@@ -80,7 +81,7 @@ impl CommitStateBlockBuilder {
     /// Processes the execution event in the provided event descriptor.
     pub fn process_event_descriptor(
         &mut self,
-        event_descriptor: &EventDescriptor<'_, ExecEventDecoder>,
+        event_descriptor: &EventDescriptor<&EventRing<ExecEventDecoder>, ExecEventDecoder>,
     ) -> Option<BlockBuilderResult<CommitStateBlockUpdate>> {
         match event_descriptor.try_filter_map(Self::select_commit_state_event_refs) {
             EventPayloadResult::Ready(Some(exec_event)) => {

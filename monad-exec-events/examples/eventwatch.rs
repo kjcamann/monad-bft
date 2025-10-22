@@ -18,10 +18,8 @@ use std::{ffi::CStr, path::PathBuf, time::Duration};
 use chrono::{DateTime, Local, TimeZone};
 use clap::Parser;
 use lazy_static::lazy_static;
-use monad_event_ring::{
-    DecodedEventRing, EventDescriptor, EventDescriptorInfo, EventNextResult, EventPayloadResult,
-    EventRingPath,
-};
+use monad_event::{EventDescriptor, EventDescriptorInfo};
+use monad_event_ring::{DecodedEventRing, EventNextResult, EventPayloadResult, EventRingPath};
 use monad_exec_events::{
     ffi::{g_monad_exec_event_metadata, DEFAULT_FILE_NAME, MONAD_EXEC_EVENT_COUNT},
     ExecEventDecoder, ExecEventDescriptorExt, ExecEventReaderExt, ExecEventRing, ExecEventType,

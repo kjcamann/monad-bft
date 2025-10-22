@@ -5,6 +5,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+monad-event = { workspace = true }
 monad-event-ring = { workspace = true }
 
 alloy-consensus = { workspace = true, optional = true }

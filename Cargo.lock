@@ -5653,6 +5653,7 @@ name = "monad-peer-discovery"
 version = "0.1.0"
 dependencies = [
  "alloy-rlp",
+ "arrayvec",
  "clap 4.5.47",
  "futures",
  "hex",

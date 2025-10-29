@@ -126,7 +126,7 @@ enum OpenEventRing {
 }
 
 impl OpenEventRing {
-    fn new(event_ring_path: EventRingPath) -> Result<Self, String> {
+    fn new(event_ring_path: EventRingPath) -> std::io::Result<Self> {
         if event_ring_path.is_snapshot_file()? {
             let snapshot = ExecSnapshotEventRing::new_from_zstd_path(event_ring_path, None)?;
             Ok(OpenEventRing::Snapshot(snapshot))

@@ -15,6 +15,8 @@
 
 use std::{fs::File, path::Path};
 
+use monad_event::Result;
+
 use crate::EventCaptureReader;
 
 /// A resolved event capture file that can be used to open event captures.
@@ -31,7 +33,7 @@ impl EventCaptureFile {
     }
 
     /// Creates an [`EventCaptureReader`] from this file.
-    pub fn create_reader(&self) -> Result<EventCaptureReader, String> {
+    pub fn create_reader(&self) -> Result<EventCaptureReader> {
         EventCaptureReader::new(&self.file)
     }
 }

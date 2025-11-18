@@ -18,7 +18,9 @@ use std::path::PathBuf;
 use clap::Parser;
 use monad_block_capture::BlockCaptureBlockArchive;
 use monad_event_capture::{EventCaptureEventSection, EventCaptureNextResult};
-use monad_exec_events::{ExecEventCaptureEventIter, ExecutedBlock, ExecutedBlockBuilder};
+use monad_exec_events::{
+    ExecEventCaptureEventIter, ExecEventDecoder, ExecutedBlock, ExecutedBlockBuilder,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "monad-block-capture-archivedump", about, long_about = None)]
@@ -43,7 +45,12 @@ fn main() {
         let mut event_capture_reader = loop {
             match block_archive.open_block(block_number) {
                 Ok(event_capture_reader) => break event_capture_reader,
-                Err(err) => panic!("{err:#?}"),
+                Err(err) => match err.kind() {
+                    std::io::ErrorKind::NotFound => {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    _ => panic!("{err:#?}"),
+                },
             }
         };
 
@@ -59,7 +66,7 @@ fn main() {
     }
 }
 
-fn extract_block(event_section: EventCaptureEventSection) -> ExecutedBlock {
+fn extract_block(event_section: EventCaptureEventSection<ExecEventDecoder>) -> ExecutedBlock {
     let mut event_iter: ExecEventCaptureEventIter<'_> = event_section.open_iterator();
 
     let mut block_builder = ExecutedBlockBuilder::new(true, true);

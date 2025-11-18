@@ -15,7 +15,7 @@
 
 use std::marker::PhantomData;
 
-use monad_event::EventDecoder;
+use monad_event::{EventDecoder, Result};
 
 pub use self::iter::{EventCaptureEventIter, EventCapturePayload, EventCaptureRawPayload};
 use crate::ffi::{
@@ -91,7 +91,7 @@ impl<'reader> EventCaptureSectionDescriptor<'reader> {
     /// section.
     pub fn open_event_section<D: EventDecoder>(
         self,
-    ) -> Result<EventCaptureEventSection<'reader, D>, String> {
+    ) -> Result<EventCaptureEventSection<'reader, D>> {
         EventCaptureEventSection::new(self.reader, self.inner)
     }
 }
@@ -112,7 +112,7 @@ where
     fn new(
         reader: &'reader monad_evcap_reader,
         section_desc: &monad_evcap_section_desc,
-    ) -> Result<Self, String> {
+    ) -> Result<Self> {
         let inner = monad_evcap_event_section_open(reader, section_desc)?;
 
         Ok(Self {

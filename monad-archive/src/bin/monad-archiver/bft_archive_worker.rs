@@ -186,7 +186,7 @@ async fn process_single_file(
         .wrap_err("Failed to read local BFT file")?;
 
     store
-        .put(&key, bytes, WritePolicy::AllowOverwrite)
+        .put(&key, bytes, WritePolicy::NoClobber)
         .await
         .wrap_err("Failed to upload BFT block")?;
     metrics.inc_counter(MetricNames::BFT_BLOCK_FILES_UPLOADED);
@@ -387,7 +387,7 @@ mod tests {
             .put(
                 &header_key,
                 b"already uploaded".to_vec(),
-                WritePolicy::AllowOverwrite,
+                WritePolicy::NoClobber,
             )
             .await
             .unwrap();
@@ -529,7 +529,7 @@ mod tests {
         // Add a key to the store
         let key = format!("{BFT_BLOCK_PREFIX}test_block{BFT_BLOCK_HEADER_EXTENSION}");
         store
-            .put(&key, b"content".to_vec(), WritePolicy::AllowOverwrite)
+            .put(&key, b"content".to_vec(), WritePolicy::NoClobber)
             .await
             .unwrap();
 
@@ -543,11 +543,7 @@ mod tests {
 
         // Add a different key
         store
-            .put(
-                "other_key",
-                b"content".to_vec(),
-                WritePolicy::AllowOverwrite,
-            )
+            .put("other_key", b"content".to_vec(), WritePolicy::NoClobber)
             .await
             .unwrap();
 
@@ -565,7 +561,7 @@ mod tests {
             .put(
                 "bft_block/test",
                 b"content".to_vec(),
-                WritePolicy::AllowOverwrite,
+                WritePolicy::NoClobber,
             )
             .await
             .unwrap();
@@ -573,7 +569,7 @@ mod tests {
             .put(
                 "bft_block/test_longer",
                 b"content".to_vec(),
-                WritePolicy::AllowOverwrite,
+                WritePolicy::NoClobber,
             )
             .await
             .unwrap();

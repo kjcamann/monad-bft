@@ -5439,6 +5439,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "monad-event-source"
+version = "0.1.0"
+dependencies = [
+ "monad-event",
+ "monad-event-capture",
+ "monad-event-ring",
+]
+
+[[package]]
 name = "monad-exec-events"
 version = "0.1.0"
 dependencies = [
@@ -5457,6 +5466,7 @@ dependencies = [
  "monad-event",
  "monad-event-capture",
  "monad-event-ring",
+ "monad-event-source",
  "ratatui",
  "serde",
  "serde_json",

@@ -51,6 +51,7 @@ monad-ethcall = { path = "./monad-ethcall" }
 monad-event = { path = "./monad-event" }
 monad-event-capture = { path = "./monad-event-capture" }
 monad-event-ring = { path = "./monad-event-ring" }
+monad-event-source = { path = "./monad-event-source" }
 monad-exec-events = { path = "./monad-exec-events" }
 monad-executor = { path = "./monad-executor" }
 monad-executor-glue = { path = "./monad-executor-glue" }

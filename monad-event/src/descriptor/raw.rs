@@ -47,6 +47,15 @@ impl<B> RawEventDescriptor<B> {
     pub fn with_inner(&self) -> (&monad_event_descriptor, &B) {
         (&self.inner, &self.buffer)
     }
+
+    pub(super) fn map<T>(self, f: impl FnOnce(B) -> T) -> RawEventDescriptor<T> {
+        let Self { inner, buffer } = self;
+
+        RawEventDescriptor {
+            inner,
+            buffer: f(buffer),
+        }
+    }
 }
 
 /// Information associated with an event descriptor.

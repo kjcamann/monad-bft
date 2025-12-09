@@ -1,0 +1,9 @@
+[package]
+name = "monad-event-source"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+monad-event = { workspace = true }
+monad-event-capture = { workspace = true }
+monad-event-ring = { workspace = true }

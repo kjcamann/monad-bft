@@ -93,6 +93,8 @@
 use monad_event_capture::{EventCaptureEventIter, EventCapturePayload};
 #[cfg(feature = "event-ring")]
 use monad_event_ring::{EventReader, EventRing, EventRingPayload, SnapshotEventRing};
+#[cfg(feature = "event-source")]
+use monad_event_source::{EventSource, EventSourceIter, EventSourceRead};
 
 pub use self::{block::*, block_builder::*, events::*, ext::*};
 
@@ -128,3 +130,16 @@ pub type ExecEventCaptureEventIter<'section> = EventCaptureEventIter<'section, E
 /// A type alias for an event descriptor produced by an execution event capture event iterator.
 pub type ExecEventCaptureDescriptor<'section> =
     monad_event::EventDescriptor<EventCapturePayload<'section>, ExecEventDecoder>;
+
+#[cfg(feature = "event-source")]
+/// A type alias for an event source that produces monad execution events.
+pub type ExecEventSource<'source> = EventSource<'source, ExecEventDecoder>;
+
+#[cfg(feature = "event-source")]
+/// A type alias for an event source iterator that produces monad execution events.
+pub type ExecEventSourceIter<'source> = EventSourceIter<'source, ExecEventDecoder>;
+
+#[cfg(feature = "event-source")]
+/// A type alias for an event descriptor produced by an execution source iterator.
+pub type ExecEventSourceDescriptor<'section> =
+    monad_event::EventDescriptor<EventSourceRead<'section>, ExecEventDecoder>;

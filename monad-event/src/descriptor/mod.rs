@@ -126,6 +126,19 @@ where
 
         f(event_descriptor, read)
     }
+
+    /// Enables mapping the event descriptor buffer.
+    pub fn map<T>(self, f: impl FnOnce(R::Raw) -> T::Raw) -> EventDescriptor<T, D>
+    where
+        T: EventDescriptorRead,
+    {
+        let Self { raw, _phantom } = self;
+
+        EventDescriptor {
+            raw: raw.map(f),
+            _phantom,
+        }
+    }
 }
 
 /// Provides generic read functionality for event descriptors.

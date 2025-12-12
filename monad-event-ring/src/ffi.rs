@@ -33,7 +33,7 @@ mod bindings {
     use ::monad_event::ffi::{
         monad_event_content_type as monad_event_content_type_t, monad_event_descriptor,
     };
-    use libc::{off_t, pid_t};
+    use libc::{off_t, pid_t, sigset_t, timespec};
 
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

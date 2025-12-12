@@ -15,9 +15,10 @@
 
 use std::path::PathBuf;
 
-const INCLUDES: [(&str, &[&str]); 1] = [("../monad-cxx/monad-execution/", &[
-    "category/execution/ethereum/event/blockcap.h",
-])];
+const INCLUDES: [(&str, &[&str]); 1] = [(
+    "../monad-cxx/monad-execution/",
+    &["category/execution/ethereum/event/blockcap.h"],
+)];
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");

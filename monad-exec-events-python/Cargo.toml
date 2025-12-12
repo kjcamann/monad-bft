@@ -1,0 +1,22 @@
+[package]
+name = "monad-exec-events-python"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "monad_exec_events_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+monad-block-capture = { workspace = true }
+monad-cxx = { workspace = true }
+monad-event = { workspace = true }
+monad-event-capture = { workspace = true }
+monad-event-ring = { workspace = true }
+monad-exec-events = { workspace = true }
+
+chrono = { workspace = true }
+itertools = { workspace = true }
+polars = { version = "=0.50.0", features = ["dtype-array", "dtype-datetime", "dtype-u8", "fmt", "lazy"], default-features = false }
+pyo3 = { version = "=0.25.1", features = ["abi3-py38"] }
+pyo3-polars = { version = "=0.23.1", features = ["derive", "dtype-array", "lazy"] }

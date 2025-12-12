@@ -1,0 +1,10 @@
+[tool.uv.sources]
+monad-exec-events = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "monad-exec-events-python",
+]
+
+[tool.setuptools]
+py-modules = []

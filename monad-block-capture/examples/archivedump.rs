@@ -22,6 +22,17 @@ use monad_exec_events::{
     ExecEventCaptureEventIter, ExecEventDecoder, ExecutedBlock, ExecutedBlockBuilder,
 };
 
+#[unsafe(no_mangle)]
+unsafe extern "C" fn monad_stack_backtrace_capture_and_print(
+    buffer: *const char,
+    size: libc::size_t,
+    fd: i32,
+    indent: i32,
+    print_async_unsafe_info: bool,
+) {
+    todo!()
+}
+
 #[derive(Debug, Parser)]
 #[command(name = "monad-block-capture-archivedump", about, long_about = None)]
 pub struct Cli {

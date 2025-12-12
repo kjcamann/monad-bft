@@ -51,7 +51,7 @@ fn main() {
 
     let mut builder = bindgen::Builder::default()
         .header("wrapper.h")
-        .clang_args(["-x", "c", "-std=c23"])
+        .clang_args(["-x", "c", "-std=c23", "-D_GNU_SOURCE"])
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .wrap_static_fns(true)
         .wrap_static_fns_path(out_dir.join(STATIC_FNS_PATH))
@@ -89,5 +89,6 @@ fn main() {
                     .map(|(include_path, _)| PathBuf::from(include_path)),
             ),
         )
+        .define("_GNU_SOURCE", "")
         .compile(STATIC_FNS_PATH);
 }

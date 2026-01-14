@@ -100,6 +100,7 @@ alloy-signer-local = { workspace = true }
 arbitrary = { workspace = true }
 awc = { workspace = true }
 criterion = { workspace = true }
+proptest = { workspace = true }
 reqwest = { workspace = true }
 tempfile = { workspace = true }
 test-case = { workspace = true }

@@ -3,32 +3,22 @@ use std::{collections::VecDeque, num::NonZeroUsize, path::PathBuf, thread::JoinH
 use monad_block_capture::BlockCaptureBlockArchive;
 use monad_event_capture::EventCaptureReader;
 use polars::prelude::*;
-use pyo3::prelude::*;
-use pyo3_polars::{PyDataFrame, error::PyPolarsErr};
 
 use self::{
-    block_performance::{BlockArchiveBlockPerformanceScanner, BlockPerformanceScanner},
-    slot_updates::{BlockArchiveSlotUpdatesScanner, SlotUpdateScanner},
-    tx_gas::{BlockArchiveTxGasScanner, TxGasScanner},
+    // block_performance::{BlockArchiveBlockPerformanceScanner, BlockPerformanceScanner},
+    // slot_updates::{BlockArchiveSlotUpdatesScanner, SlotUpdateScanner},
+    // tx_gas::{BlockArchiveTxGasScanner, TxGasScanner},
     tx_header::{BlockArchiveTxHeaderScanner, TxHeaderScanner},
-    tx_performance::{BlockArchiveTxPerformanceScanner, TxPerformanceScanner},
+    // tx_performance::{BlockArchiveTxPerformanceScanner, TxPerformanceScanner},
 };
 
-mod block_performance;
-mod slot_updates;
-mod tx_gas;
 mod tx_header;
-mod tx_performance;
 
-#[repr(C)]
-#[pyclass]
 pub struct BlockArchive {
     block_archive: Arc<BlockCaptureBlockArchive>,
 }
 
-#[pymethods]
 impl BlockArchive {
-    #[new]
     pub fn new(path: PathBuf) -> Self {
         let block_archive =
             BlockCaptureBlockArchive::new(&std::fs::File::open(path).unwrap()).unwrap();
@@ -38,65 +28,65 @@ impl BlockArchive {
         }
     }
 
-    pub fn create_slot_update_scanner(
-        &self,
-        start_block: u64,
-        end_block: u64,
-    ) -> BlockArchiveSlotUpdatesScanner {
-        BlockArchiveSlotUpdatesScanner {
-            block_archive: self.block_archive.clone(),
+    // pub fn create_slot_update_scanner(
+    //     &self,
+    //     start_block: u64,
+    //     end_block: u64,
+    // ) -> BlockArchiveSlotUpdatesScanner {
+    //     BlockArchiveSlotUpdatesScanner {
+    //         block_archive: self.block_archive.clone(),
 
-            start_block,
-            end_block,
+    //         start_block,
+    //         end_block,
 
-            scanner: SlotUpdateScanner,
-        }
-    }
+    //         scanner: SlotUpdateScanner,
+    //     }
+    // }
 
-    pub fn create_block_performance_scanner(
-        &self,
-        start_block: u64,
-        end_block: u64,
-    ) -> BlockArchiveBlockPerformanceScanner {
-        BlockArchiveBlockPerformanceScanner {
-            block_archive: self.block_archive.clone(),
+    // pub fn create_block_performance_scanner(
+    //     &self,
+    //     start_block: u64,
+    //     end_block: u64,
+    // ) -> BlockArchiveBlockPerformanceScanner {
+    //     BlockArchiveBlockPerformanceScanner {
+    //         block_archive: self.block_archive.clone(),
 
-            start_block,
-            end_block,
+    //         start_block,
+    //         end_block,
 
-            scanner: BlockPerformanceScanner,
-        }
-    }
+    //         scanner: BlockPerformanceScanner,
+    //     }
+    // }
 
-    pub fn create_tx_performance_scanner(
-        &self,
-        start_block: u64,
-        end_block: u64,
-    ) -> BlockArchiveTxPerformanceScanner {
-        BlockArchiveTxPerformanceScanner {
-            block_archive: self.block_archive.clone(),
+    // pub fn create_tx_performance_scanner(
+    //     &self,
+    //     start_block: u64,
+    //     end_block: u64,
+    // ) -> BlockArchiveTxPerformanceScanner {
+    //     BlockArchiveTxPerformanceScanner {
+    //         block_archive: self.block_archive.clone(),
 
-            start_block,
-            end_block,
+    //         start_block,
+    //         end_block,
 
-            scanner: TxPerformanceScanner,
-        }
-    }
+    //         scanner: TxPerformanceScanner,
+    //     }
+    // }
 
-    pub fn create_tx_gas_scanner(
-        &self,
-        start_block: u64,
-        end_block: u64,
-    ) -> BlockArchiveTxGasScanner {
-        BlockArchiveTxGasScanner {
-            block_archive: self.block_archive.clone(),
+    // pub fn create_tx_gas_scanner(
+    //     &self,
+    //     start_block: u64,
+    //     end_block: u64,
+    // ) -> BlockArchiveTxGasScanner {
+    //     BlockArchiveTxGasScanner {
+    //         block_archive: self.block_archive.clone(),
 
-            start_block,
-            end_block,
+    //         start_block,
+    //         end_block,
 
-            scanner: TxGasScanner,
-        }
-    }
+    //         scanner: TxGasScanner,
+    //     }
+    // }
 
     pub fn create_tx_header_scanner(
         &self,
@@ -125,7 +115,7 @@ pub trait BlockArchiveScanner {
 }
 
 pub trait BlockProcessor: Send + Sync {
-    fn run(task: BlockArchiveTask) -> PyResult<Option<DataFrame>>;
+    fn run(task: BlockArchiveTask) -> PolarsResult<Option<DataFrame>>;
 }
 
 #[repr(C)]
@@ -136,7 +126,7 @@ where
     block_archive: Arc<BlockCaptureBlockArchive>,
 
     threads: NonZeroUsize,
-    tasks: VecDeque<JoinHandle<PyResult<Option<DataFrame>>>>,
+    tasks: VecDeque<JoinHandle<PolarsResult<Option<DataFrame>>>>,
 
     current_block: u64,
     end_block: u64,
@@ -154,13 +144,10 @@ impl<P> BlockProcessorHarness<P>
 where
     P: BlockProcessor,
 {
-    fn next(&mut self) -> PyResult<Option<PyDataFrame>> {
+    fn next(&mut self) -> PolarsResult<Option<DataFrame>> {
         let ret_dataframe = loop {
             while self.current_block <= self.end_block && self.tasks.len() < self.threads.get() {
-                let reader = self
-                    .block_archive
-                    .open_block(self.current_block)
-                    .map_err(|err| PyPolarsErr::Other(err.to_string()))?;
+                let reader = self.block_archive.open_block(self.current_block)?;
 
                 self.tasks.push_back(std::thread::spawn({
                     let block_number = self.current_block;
@@ -179,15 +166,11 @@ where
                         };
 
                         if let Some(predicate) = predicate {
-                            df = df
-                                .lazy()
-                                .filter(predicate)
-                                .collect()
-                                .map_err(PyPolarsErr::from)?;
+                            df = df.lazy().filter(predicate).collect()?;
                         }
 
                         if let Some(with_columns) = with_columns {
-                            df = df.select(with_columns).map_err(PyPolarsErr::from)?;
+                            df = df.select(with_columns)?;
                         }
 
                         Ok(Some(df))
@@ -227,9 +210,7 @@ where
                 };
 
             if let Some(dataframe) = self.dataframe.as_mut() {
-                let _ = dataframe
-                    .vstack_mut_owned(stack_dataframe)
-                    .map_err(PyPolarsErr::from)?;
+                let _ = dataframe.vstack_mut_owned(stack_dataframe)?;
             } else {
                 self.dataframe = Some(stack_dataframe);
             }
@@ -249,14 +230,13 @@ where
             }
         };
 
-        Ok(ret_dataframe.map(PyDataFrame))
+        Ok(ret_dataframe)
     }
 }
 
 #[macro_export]
 macro_rules! create_scanner {
     ($name: ident, $type: ident, $processor: ident) => {
-        #[pyclass]
         pub struct $name {
             pub(crate) block_archive:
                 std::sync::Arc<::monad_block_capture::BlockCaptureBlockArchive>,
@@ -267,14 +247,12 @@ macro_rules! create_scanner {
             pub(crate) scanner: $type,
         }
 
-        #[pymethods]
         impl $name {
-            #[staticmethod]
-            pub fn schema() -> pyo3_polars::PySchema {
-                pyo3_polars::PySchema(std::sync::Arc::new(
-                    <$type as crate::block_archive::BlockArchiveScanner>::schema(),
-                ))
-            }
+            // pub fn schema() -> pyo3_polars::PySchema {
+            //     pyo3_polars::PySchema(std::sync::Arc::new(
+            //         <$type as crate::block_archive::BlockArchiveScanner>::schema(),
+            //     ))
+            // }
 
             pub fn create_processor(&self) -> $processor {
                 let threads = std::thread::available_parallelism()
@@ -305,28 +283,28 @@ macro_rules! create_scanner {
             }
         }
 
-        #[pyclass]
         pub struct $processor(
             crate::block_archive::BlockProcessorHarness<
                 <$type as crate::block_archive::BlockArchiveScanner>::BlockProcessor,
             >,
         );
 
-        #[pymethods]
         impl $processor {
-            pub fn set_max_rows(&mut self, max_rows: u64) {
-                self.0.max_rows = Some(max_rows.try_into().unwrap());
-            }
+            // pub fn set_max_rows(&mut self, max_rows: u64) {
+            //     self.0.max_rows = Some(max_rows.try_into().unwrap());
+            // }
 
-            pub fn set_predicate(&mut self, predicate: ::pyo3_polars::PyExpr) {
-                self.0.predicate = Some(predicate.0);
-            }
+            // pub fn set_predicate(&mut self, predicate: ::polars::prelude::Expr) {
+            //     self.0.predicate = Some(predicate.0);
+            // }
 
-            pub fn set_with_columns(&mut self, columns: Vec<String>) {
-                self.0.with_columns = Some(columns)
-            }
+            // pub fn set_with_columns(&mut self, columns: Vec<String>) {
+            //     self.0.with_columns = Some(columns)
+            // }
 
-            pub fn next(&mut self) -> ::pyo3::PyResult<Option<::pyo3_polars::PyDataFrame>> {
+            pub fn next(
+                &mut self,
+            ) -> ::polars::prelude::PolarsResult<Option<::polars::prelude::DataFrame>> {
                 self.0.next()
             }
         }

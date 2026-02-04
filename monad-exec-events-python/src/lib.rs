@@ -1,6 +1,5 @@
+pub use block_archive::{BlockArchive, BlockArchiveScanner, BlockProcessorHarness};
 use pyo3::prelude::*;
-
-use crate::block_archive::BlockArchive;
 
 mod block_archive;
 

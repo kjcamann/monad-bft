@@ -5906,6 +5906,7 @@ dependencies = [
  "monad-secp",
  "monad-types",
  "serde",
+ "serde_with",
  "strum",
  "toml",
 ]
